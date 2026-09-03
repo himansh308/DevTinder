@@ -1,0 +1,12 @@
+{
+  // --- Keep EG-licensed Copilot OFF for this personal project (compliance) ---
+  "github.copilot.enable": { "*": false },
+  "github.copilot.inlineSuggest.enable": false,
+
+  // --- Re-enable NORMAL IntelliSense (real symbols: your variables, object properties, methods) ---
+  "editor.quickSuggestions": { "other": true, "comments": false, "strings": false },
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.wordBasedSuggestions": "matchingDocuments",
+  "editor.parameterHints.enabled": true,
+  "editor.acceptSuggestionOnCommitCharacter": true
+}
