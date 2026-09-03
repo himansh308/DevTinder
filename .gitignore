@@ -1,3 +1,5 @@
 node_modules/
 .env
 cookies*.txt
+cookies_test2.txt
+cookies_test3.text
