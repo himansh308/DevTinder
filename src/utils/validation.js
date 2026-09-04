@@ -35,7 +35,34 @@ const validateEditProfileDate =(req)=>{
 
 }
 
+const validateProfilePreference = (req)=>{
+    const Allowed_Edits = ["minAge" ,"maxAge" , "genderPreference"];
+
+    const isEditAllowed = Object.keys(req.body).every((value)=>{
+        return Allowed_Edits.includes(value);
+    });
+
+    if(!isEditAllowed){
+        throw new Error("Invalid profile Preference edit Request")
+    }
+
+
+    if(req.body?.minAge != undefined && req.body?.maxAge != undefined){
+        if(!(typeof req.body.minAge === "number" && typeof req.body.maxAge === "number")){
+            throw new Error("Invalid Change Request");
+        }
+        if(req.body.minAge > req.body.maxAge)
+            {
+            throw new Error ("MinAge cannot be greater then MaxAge");
+        }
+
+    }
+    
+}
+
+
 module.exports={
     isSignupValidated,
-    validateEditProfileDate
+    validateEditProfileDate,
+    validateProfilePreference
 }

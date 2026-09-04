@@ -2,7 +2,7 @@ const express = require('express');
 const profileRouter = express.Router();
 const {userAuth} = require('../middlewares/auth');
 const User = require('../models/users');
-const{validateEditProfileDate} = require('../utils/validation');
+const{validateEditProfileDate, validateProfilePreference} = require('../utils/validation');
 
 
 profileRouter.post('/profile/view' ,userAuth, async(req,res)=>{
@@ -65,7 +65,22 @@ profileRouter.patch('/profile/edit', userAuth , async(req,res)=>{
 //         res.status(404).send(err.message);
 //     }
 // })
+profileRouter.patch('/profile/preferences' , userAuth , async(req , res) =>{
+    try{
+        validateProfilePreference(req);
 
+        const loggedInUser = req.user;
+        Object.keys(req.body).forEach((key)=>{
+            loggedInUser[key] = req.body[key];
+        })
+
+        await loggedInUser.save();
+        res.status(200).send(loggedInUser);
+    }
+    catch(err){
+        res.status(400).send(err.message);
+    }
+})
 profileRouter.delete('/delete', userAuth, async(req,res)=>{
     const userId = req.user._id;
 

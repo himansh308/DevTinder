@@ -92,11 +92,31 @@ userRouter.get('/feed' , userAuth, async(req,res)=>{
             hideExistingData.add(reqt.toUserId.toString());
         })
 
+        // const feedData = await User.find({
+        //     $and:[
+        //         {_id:{$nin:Array.from(hideExistingData)}},
+        //         {_id:{$ne:loggedInUser._id}}
+        //     ]
+        // })
+
+        const feedFilter = [
+            {_id:{$nin:Array.from(hideExistingData)}},
+            {_id:{$ne:loggedInUser._id}}
+        ]
+
+        if(loggedInUser?.genderPreference != undefined && loggedInUser?.genderPreference?.length !=0){
+            feedFilter.push(
+                {gender:{$in:loggedInUser.genderPreference}},
+            )
+        }
+        if(loggedInUser.minAge && loggedInUser.maxAge){
+            feedFilter.push(
+                {age:{$gte:loggedInUser.minAge , $lte:loggedInUser.maxAge}},
+                
+            )
+        }
         const feedData = await User.find({
-            $and:[
-                {_id:{$nin:Array.from(hideExistingData)}},
-                {_id:{$ne:loggedInUser._id}}
-            ]
+            $and:feedFilter
         })
         .select(USER_SAFE_DATE)
         .skip(noOfPageToBeSkiped)

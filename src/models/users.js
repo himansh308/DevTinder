@@ -41,6 +41,8 @@ const userSchema = new mongoose.Schema({
     },
     age:{
         type:Number,
+        min:18,
+        max:70
     },
     gender:{
         type:String,
@@ -69,6 +71,20 @@ const userSchema = new mongoose.Schema({
     resetOtpExpiry: {
         type: Date,
     },
+    genderPreference:{
+        type:[String],
+        enum:{
+            values:["male", "female", "others"],
+            message:"Gender is not valid"
+            
+        }
+    },
+    minAge:{
+        type:Number
+    },
+    maxAge:{
+        type:Number
+    }
 },
 {
     timestamps:true,
