@@ -46,6 +46,7 @@ const userSchema = new mongoose.Schema({
     },
     gender:{
         type:String,
+        required:true,
         validate(value){
             if(!["male", "female", "others"].includes(value)){
                 throw new Error("Gender is not valid" + value);
@@ -84,6 +85,23 @@ const userSchema = new mongoose.Schema({
     },
     maxAge:{
         type:Number
+    },
+    location:{
+        type:{
+            type:String,
+            enum:["Point"],
+        },
+        coordinates:{
+            type:[Number],
+            validate(value){
+                if(!((value[0] >= -180 && value[0] <= 180) && (value[1] >= -90 && value[1] <= 90))){
+                    throw new Error("Invalid coordinates");
+                }
+            }
+        }
+    },
+    maxDistance:{
+        type:Number
     }
 },
 {
@@ -109,6 +127,8 @@ userSchema.methods.validatePassword = async function(passwordInputByUser){
     return isPasswordValid;
 
 }
+
+userSchema.index({ location : "2dsphere" });
 
 const User = mongoose.model("User", userSchema);
 

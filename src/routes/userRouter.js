@@ -4,7 +4,9 @@ const userRouter = express.Router();
 const {userAuth} = require('../middlewares/auth');
 const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
+const { validateLocation } = require('../utils/validation');
 const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl"]
+
 userRouter.get('/user/requests/received' , userAuth , async(req,res)=>{
    
 
@@ -64,6 +66,27 @@ userRouter.get('/user/connections' , userAuth, async(req,res)=>{
     }
 })
 
+userRouter.patch('/user/location' , userAuth , async(req,res)=>{
+    try{
+        const loggedInUser = req.user;
+
+        validateLocation(req);
+        
+        Object.keys(req.body).forEach((key)=>{
+            loggedInUser[key] = req.body[key];
+        })
+
+        loggedInUser.location.type = "Point";
+
+        await loggedInUser.save();
+
+        res.status(200).send(loggedInUser);
+    }
+    catch(err){
+        res.status(400).send(err.message);
+    }
+})
+
 userRouter.get('/feed' , userAuth, async(req,res)=>{
 
     try{
@@ -71,6 +94,7 @@ userRouter.get('/feed' , userAuth, async(req,res)=>{
         const loggedInUser = req.user;
         const page = parseInt(req.query.page) || 1;
         let PageLimit = parseInt(req.query.limit) || 10;
+        
 
         if(PageLimit>50){
             PageLimit=50;
@@ -115,6 +139,20 @@ userRouter.get('/feed' , userAuth, async(req,res)=>{
                 
             )
         }
+
+       if(loggedInUser.location && loggedInUser.maxDistance){
+        const loggedInUserLocationCoordinates = loggedInUser.location.coordinates;
+        const loggedInUserMaxPreferencedDistance = loggedInUser.maxDistance *1000;
+            feedFilter.push({
+                location: {
+                    $near: {
+                        $geometry: { type: "Point", coordinates:loggedInUserLocationCoordinates},
+                        $maxDistance: loggedInUserMaxPreferencedDistance
+                    }
+                }
+            })
+        }
+
         const feedData = await User.find({
             $and:feedFilter
         })

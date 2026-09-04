@@ -36,7 +36,7 @@ const validateEditProfileDate =(req)=>{
 }
 
 const validateProfilePreference = (req)=>{
-    const Allowed_Edits = ["minAge" ,"maxAge" , "genderPreference"];
+    const Allowed_Edits = ["minAge" ,"maxAge" , "genderPreference","maxDistance"];
 
     const isEditAllowed = Object.keys(req.body).every((value)=>{
         return Allowed_Edits.includes(value);
@@ -60,9 +60,27 @@ const validateProfilePreference = (req)=>{
     
 }
 
+const validateLocation= (req) =>{
+    const Allowed_Edits = ["location"];
+
+    const isEditAllowed =Object.keys(req.body).every((key)=>{
+        return Allowed_Edits.includes(key);
+    })
+
+    if(!isEditAllowed){
+        throw new Error("Invalid request");
+    }
+
+    if(!req.body.location.coordinates || !Array.isArray(req.body.location.coordinates) || req.body.location.coordinates.length!==2){
+        throw new Error("Invalid Request");
+    }
+
+}
+
 
 module.exports={
     isSignupValidated,
     validateEditProfileDate,
-    validateProfilePreference
+    validateProfilePreference,
+    validateLocation
 }
