@@ -4,7 +4,8 @@ const userRouter = express.Router();
 const {userAuth} = require('../middlewares/auth');
 const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
-const { validateLocation } = require('../utils/validation');
+const { validateLocation, validateMutualConnectionCandidateId } = require('../utils/validation');
+const { getConnectionIds } = require('../utils/connections');
 const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl"]
 
 userRouter.get('/user/requests/received' , userAuth , async(req,res)=>{
@@ -164,6 +165,30 @@ userRouter.get('/feed' , userAuth, async(req,res)=>{
             message:"Your Feed",
             data:feedData
         });
+    }
+    catch(err){
+        res.status(400).send(err.message);
+    }
+})
+
+userRouter.get('/user/mutual-connections/:candidateId' , userAuth , async(req,res)=>{
+    try{
+        const loggedInUser = req.user;
+        const candidateId = req.params.candidateId;
+        await validateMutualConnectionCandidateId(candidateId);
+        
+        const allConnectionsForUser1 = await getConnectionIds(loggedInUser._id);
+        const allConnectionForUser2 =  await getConnectionIds(candidateId);
+
+        const mutualIds =[...allConnectionsForUser1].filter((Id)=>{
+            return allConnectionForUser2.has(Id);
+        })
+
+        const AllMutualConnectionsDetails = await User.find({ 
+            _id : { $in : mutualIds}
+        }).select(USER_SAFE_DATE);
+
+        res.status(200).send(AllMutualConnectionsDetails);
     }
     catch(err){
         res.status(400).send(err.message);

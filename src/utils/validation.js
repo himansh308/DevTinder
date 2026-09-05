@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const validator = require('validator');
+const User = require('../models/users');
 
 
 const isSignupValidated = (req)=>{
@@ -77,10 +79,22 @@ const validateLocation= (req) =>{
 
 }
 
+const validateMutualConnectionCandidateId = async(candidateId)=>{
+    if(!mongoose.Types.ObjectId.isValid(candidateId)){
+        throw new Error("Invalid candidateID");
+    }
+
+    const isCandidateIdUserExists = await User.findById(candidateId);
+    if(!isCandidateIdUserExists){
+        throw new Error("Invalid User");
+    }
+}
+
 
 module.exports={
     isSignupValidated,
     validateEditProfileDate,
     validateProfilePreference,
-    validateLocation
+    validateLocation,
+    validateMutualConnectionCandidateId
 }
