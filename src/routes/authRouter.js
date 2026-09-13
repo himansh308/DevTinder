@@ -55,7 +55,10 @@ authRouter.post('/login', async(req,res)=>{
             else{
                 const token = await isUserExist.getJWT();
                 res.cookie("token",token);
-                res.status(200).send("User Logged In Successfully");
+                res.status(200).json({
+                    data:isUserExist,
+                    message:"User Logged In Successfully"
+                });
             }
         }
     }
