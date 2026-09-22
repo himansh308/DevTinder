@@ -9,7 +9,10 @@ profileRouter.post('/profile/view' ,userAuth, async(req,res)=>{
 
     try{
         const user = req.user;
-        res.send("User : " + user);
+        res.status(200).json({
+            data:user,
+            message:"User fetch Successfully"
+        });
             
     }
     catch(err){
