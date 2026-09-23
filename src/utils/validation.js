@@ -19,7 +19,7 @@ const isSignupValidated = (req)=>{
 }
 
 const validateEditProfileDate =(req)=>{
-    const Allowed_Edits =["skills","photoUrl","age","password"];
+    const Allowed_Edits =["firstName" ,"lastName","skills","photoUrl","age","password"];
 
     const isEditAllowed = Object.keys(req.body).every((feild)=>{
         return Allowed_Edits.includes(feild);
