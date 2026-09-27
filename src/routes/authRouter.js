@@ -17,18 +17,18 @@ authRouter.post('/signup', async(req,res)=>{
         const user = new User({firstName,lastName, email , password:hashpassword ,gender});
 
 
-                // const user = new User({
-                //     firstName: "Himanshu",
-                //     lastName: "Sengar",
-                //     email:"himanshu12534@gmail.com",
-                //     password:"Himasnhu123@",
-                //     age:22,
-                //     gender:"male"
-                // })
+        const signedUpUser = await user.save();
+        
+        const token = await signedUpUser.getJWT();
+        res.cookie("token" , token);
+
+        res.status(200).json({
+            data:signedUpUser,
+            message: "User signed up  successfully"
+        })
 
 
-        await user.save();
-        res.send("User added successfully");
+        
     }
     catch(err){
         console.log(err);
