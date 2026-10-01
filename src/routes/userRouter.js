@@ -6,7 +6,7 @@ const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
 const { validateLocation, validateMutualConnectionCandidateId } = require('../utils/validation');
 const { getConnectionIds } = require('../utils/connections');
-const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl","age"]
+const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl","age" , "gender"]
 
 userRouter.get('/user/requests/received' , userAuth , async(req,res)=>{
    
@@ -105,7 +105,10 @@ userRouter.get('/user/mutual-connections/:candidateId' , userAuth , async(req,re
             _id : { $in : mutualIds}
         }).select(USER_SAFE_DATE);
 
-        res.status(200).send(AllMutualConnectionsDetails);
+        res.status(200).json({
+            data:AllMutualConnectionsDetails,
+            message:"Data fetch successFully"
+        });
     }
     catch(err){
         res.status(400).send(err.message);
