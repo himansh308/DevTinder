@@ -81,7 +81,44 @@ userRouter.patch('/user/location' , userAuth , async(req,res)=>{
 
         await loggedInUser.save();
 
-        res.status(200).send(loggedInUser);
+        res.status(200).json({
+            data:loggedInUser,
+            message:"User location set succesfully"
+        });
+    }
+    catch(err){
+        res.status(400).send(err.message);
+    }
+})
+
+userRouter.get('/location/search' , userAuth , async(req,res)=>{
+    try{
+        const query = req.query.q;
+
+        if(!query || query.trim().length === 0){
+            throw new Error("Search query is required");
+        }
+
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`;
+
+        const nominatimResponse = await fetch(nominatimUrl, {
+            headers:{
+                "User-Agent":`DevTinder-learning-project (contact: ${process.env.NOMINATIM_CONTACT_EMAIL})`
+            }
+        });
+
+        const results = await nominatimResponse.json();
+
+        const places = results.map((place)=>({
+            display_name:place.display_name,
+            lat:place.lat,
+            lon:place.lon
+        }));
+
+        res.status(200).json({
+            data:places,
+            message:"Location search successFully"
+        });
     }
     catch(err){
         res.status(400).send(err.message);
