@@ -102,6 +102,13 @@ const userSchema = new mongoose.Schema({
     },
     maxDistance:{
         type:Number
+    },
+    locationLabel:{
+        type:String
+    },
+    locationAutoSync:{
+        type:Boolean,
+        default:true
     }
 },
 {

@@ -114,3 +114,78 @@ you're acting on (a person's ID, a request's ID) when it's a required part of th
 meaning; **query params** are optional/tunable settings for a GET-style read (`page`/`limit` on
 `/user/feed`); **body** carries actual data being submitted (signup fields, edit fields,
 coordinates).
+
+## Backend-as-proxy: calling a THIRD-PARTY API from your own server, with built-in `fetch`
+
+Built for `GET /location/search?q=...` — lets the frontend search for a place by name (e.g.
+"Nehru Place") and get back real coordinates, without the frontend ever talking to the outside
+world directly.
+
+**The shape of the whole conversation, three parties:**
+```
+Frontend  →  OUR backend (/location/search)  →  Nominatim (external geocoding service)
+          ←                                   ←
+```
+The frontend only ever calls `localhost:7777` (same as every other route in this app) — it has
+no idea Nominatim exists. Our backend is the one reaching out to a third party on the
+frontend's behalf. This is the "backend proxy" pattern: useful whenever the frontend needs data
+from an external API but shouldn't (or can't) call it directly — reasons include hiding
+API keys/credentials server-side, setting headers browsers won't let JS override (see below),
+or just keeping one consistent "frontend only talks to my backend" architecture.
+
+**Why `fetch`, not `axios`, for this one call:** this project has no HTTP client library
+installed (`axios` is a FRONTEND dependency only, used for calling OUR OWN backend from the
+browser) — there was never a reason to add one server-side until now. Node has a built-in
+global `fetch` (same API shape as the browser's `fetch`), so reaching an external API from the
+backend needs zero new dependencies.
+
+**`fetch` vs. `axios` — the two real differences that bite you:**
+```js
+const response = await fetch(url, { headers: {...} });   // step 1: get the response wrapper
+const data = await response.json();                       // step 2: actually parse the body
+```
+1. `fetch`'s result isn't the data — it's a `Response` object (status code, headers, etc.).
+   `axios`, by contrast, auto-unwraps the body into `.data` for you. With `fetch` you need a
+   **second** `await` on `.json()` to actually get usable data out of it.
+2. `fetch` does NOT throw/reject on HTTP error statuses (a 404, a 500) — only on genuine network
+   failures (DNS failure, no connection). `axios` throws on bad status codes automatically. If a
+   route needs to treat "Nominatim returned a 500" as an error, it would need an explicit
+   `if (!response.ok) { ... }` check — not needed for this specific route since Nominatim
+   returning an empty/weird array doesn't crash anything downstream, but worth knowing for next
+   time.
+
+**Why the `User-Agent` header is set HERE (server-side), not from the frontend directly:**
+Nominatim's usage policy requires every request to identify the calling application (and a
+contact method) via a `User-Agent` header. Browsers **block JavaScript from overriding
+`User-Agent`** on `fetch`/`XMLHttpRequest` calls — it's one of a handful of "forbidden" headers
+a browser won't let client-side code set, for security reasons. Server-side Node has no such
+restriction, since there's no browser sandbox involved — this is one of the concrete reasons
+"proxy through the backend" was chosen over "call Nominatim directly from the browser."
+
+```js
+"User-Agent": `DevTinder-learning-project (contact: ${process.env.NOMINATIM_CONTACT_EMAIL})`
+```
+Note this identifies the **app and its developer** — it's the same fixed string on every
+request, regardless of which logged-in user is doing the searching. It is NOT meant to be
+per-user/dynamic data; it answers "who built this app, and how can Nominatim's maintainers
+reach them if something goes wrong" — a completely different question from "who is currently
+using it." Stored in `.env` (`NOMINATIM_CONTACT_EMAIL`), same pattern as `JWT_SECRET`, instead
+of hardcoded in source — config belongs in environment variables, not committed code.
+
+**Why `encodeURIComponent` on the search text:**
+```js
+const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`;
+```
+A raw search string like `"Nehru Place"` has a space in it, which isn't a valid character
+inside a URL. `encodeURIComponent("Nehru Place")` → `"Nehru%20Place"`, safely escaping it (and
+any other special characters — `&`, `?`, non-English characters, etc.) before it gets pasted
+into the URL template literal. Skipping this would silently break or misinterpret the query for
+anything other than a single plain word.
+
+**Why `.map()` to trim the response down:**
+Nominatim's raw response per result has many fields (bounding boxes, OSM type/IDs, importance
+scores, etc.) — most irrelevant to this app. `.map()` walks the array and builds a brand-new one
+containing only `display_name`/`lat`/`lon`, the three fields the frontend dropdown actually
+needs. Same "project down to just what's needed" idea as `USER_SAFE_DATE` trimming a full
+`User` document to a few safe fields elsewhere in this codebase — just applied to a third-party
+API's response instead of our own database documents.

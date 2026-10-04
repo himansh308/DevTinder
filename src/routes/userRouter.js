@@ -125,6 +125,35 @@ userRouter.get('/location/search' , userAuth , async(req,res)=>{
     }
 })
 
+userRouter.get('/location/reverse' , userAuth , async(req,res)=>{
+    try{
+        const lat = req.query.lat;
+        const lon = req.query.lon;
+
+        if(!lat || !lon){
+            throw new Error("lat and lon are required");
+        }
+
+        const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=jsonv2`;
+
+        const nominatimResponse = await fetch(nominatimUrl, {
+            headers:{
+                "User-Agent":`DevTinder-learning-project (contact: ${process.env.NOMINATIM_CONTACT_EMAIL})`
+            }
+        });
+
+        const result = await nominatimResponse.json();
+
+        res.status(200).json({
+            data:{ display_name: result.display_name },
+            message:"Reverse geocode successFully"
+        });
+    }
+    catch(err){
+        res.status(400).send(err.message);
+    }
+})
+
 userRouter.get('/user/mutual-connections/:candidateId' , userAuth , async(req,res)=>{
     try{
         const loggedInUser = req.user;

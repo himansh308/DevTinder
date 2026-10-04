@@ -63,7 +63,7 @@ const validateProfilePreference = (req)=>{
 }
 
 const validateLocation= (req) =>{
-    const Allowed_Edits = ["location"];
+    const Allowed_Edits = ["location", "locationLabel", "locationAutoSync"];
 
     const isEditAllowed =Object.keys(req.body).every((key)=>{
         return Allowed_Edits.includes(key);
