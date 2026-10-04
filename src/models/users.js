@@ -128,6 +128,12 @@ userSchema.methods.validatePassword = async function(passwordInputByUser){
 
 }
 
+userSchema.methods.toJSON = function(){
+    const user = this.toObject();
+    delete user.password;
+    return user;
+}
+
 userSchema.index({ location : "2dsphere" });
 
 const User = mongoose.model("User", userSchema);

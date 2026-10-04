@@ -81,7 +81,10 @@ profileRouter.patch('/profile/preferences' , userAuth , async(req , res) =>{
         })
 
         await loggedInUser.save();
-        res.status(200).send(loggedInUser);
+        res.status(200).json({
+            data:loggedInUser,
+            message:"Preferences updated successFully"
+        });
     }
     catch(err){
         res.status(400).send(err.message);

@@ -217,6 +217,70 @@ schema.pre("save", function(){
 Throwing still works exactly the same way to signal failure — Mongoose wraps the hook call in
 its own try/catch internally.
 
+## `res.json(document)` silently leaks every field, including hashed `password` — override `toJSON()` to fix it at the source
+
+Real issue found 2026-10-04: `/login`, `/signup`, `/profile/view`, `/profile/edit`, and
+`/profile/preferences` all fetch the user via `User.findById(...)`/`User.findOne(...)` with no
+`.select()` narrowing the fields. That means the in-memory document has **every** field,
+including the bcrypt-hashed `password`. Since nothing ever excluded it before sending the
+response, the hash itself was going out over the wire on every one of those routes — not the
+plaintext, but still something an attacker could try to crack offline, completely bypassing any
+server-side rate limiting on login attempts.
+
+**Why it happens:** `res.json(doc)` / `res.send(doc)` has to turn the Mongoose document into a
+JSON string. Under the hood this calls `JSON.stringify(doc)`, which in turn calls
+`doc.toJSON()` if the object defines one. Mongoose's *default* `toJSON()` just dumps every
+field on the document — there's no built-in "hide this field" behavior unless you ask for it.
+
+**Fix — override `toJSON()` on the schema itself, once:**
+```js
+userSchema.methods.toJSON = function(){
+    const user = this.toObject();
+    delete user.password;
+    return user;
+}
+```
+
+Why this is the right layer to fix it at, instead of the alternatives:
+- Adding `.select("-password")` to every route works, but it's fragile — every *future* route
+  that fetches a user has to remember to add it too, forever. One miss reopens the leak.
+- Adding `select: false` directly on the `password` field in the schema changes default query
+  behavior **everywhere**, including the one place that genuinely needs it
+  (`validatePassword`, below) — would force adding `.select("+password")` wherever it's
+  actually used. More invasive, more surface area to get wrong.
+- Overriding `toJSON()` only changes the very last step — turning a document into outgoing
+  JSON. It doesn't touch how documents are fetched or used internally at all.
+
+**Why `validatePassword` still works, completely unaffected:**
+```js
+userSchema.methods.validatePassword = async function(passwordInputByUser){
+    const user = this;
+    const hashpassword = user.password;        // reads the IN-MEMORY field directly
+    return await bcrypt.compare(passwordInputByUser, hashpassword);
+}
+```
+This runs during `/login`, comparing `user.password` on the live document — **before** any
+`res.json()` call, so before `toJSON()` is ever invoked. The override only fires at
+serialization time, which is a separate, later step. Mutating what gets serialized doesn't
+touch the object attributes still sitting in memory.
+
+**Full flow for a `/login` call, concretely:**
+1. `User.findOne({email})` → full document in memory, `password` included.
+2. `validatePassword(...)` → `bcrypt.compare` against the in-memory hash → works, unaffected.
+3. `res.json({data: isUserExist, message: "..."})` → Node needs to stringify `isUserExist`.
+4. Stringify sees a custom `toJSON()` defined on it → calls ours instead of the default.
+5. Our `toJSON()` converts to a plain object, deletes `password`, returns the rest.
+6. *That* password-free object is what actually reaches the client.
+
+**Doesn't affect `.lean()` queries** (e.g. `/feed`, `/user/connections`) — those already return
+plain JS objects via `.select(USER_SAFE_DATE)`, which never included `password` to begin with,
+and plain objects have no `.methods` at all (no Mongoose document wrapper), so this override
+doesn't apply to them and isn't needed there.
+
+**Same placement rule as the `.methods` gotcha just above applies here too** — this has to be
+added *before* `mongoose.model("User", userSchema)` compiles the schema, same reasoning as
+`getJWT`/`validatePassword`.
+
 ## Built-in range validators: `min`/`max` (numbers), `minLength`/`maxLength` (strings)
 
 ```js
