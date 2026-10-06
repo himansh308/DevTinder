@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema({
         type:[String],
         default:["TypeScript","JavaScript"],
     },
+    about:{
+        type:String,
+        trim:true,
+        maxLength:300
+    },
     photoUrl:{
         type:String,
         validate(value){

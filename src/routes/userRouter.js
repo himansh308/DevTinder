@@ -6,7 +6,7 @@ const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
 const { validateLocation, validateMutualConnectionCandidateId } = require('../utils/validation');
 const { getConnectionIds } = require('../utils/connections');
-const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl","age" , "gender"]
+const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl","age" , "gender", "about"]
 
 userRouter.get('/user/requests/received' , userAuth , async(req,res)=>{
    
