@@ -80,7 +80,7 @@ authRouter.post('/forgotPassword' , async(req,res)=>{
     try{
         const isUserValid = await User.findOne({email});
         if(!isUserValid){
-            throw new Error("Invalid emai");
+            throw new Error("Invalid email");
         }
         else{
             isUserValid.resetOtp = String(Math.floor(Math.random() * 900000)+100000);
