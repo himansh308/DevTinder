@@ -4,7 +4,9 @@ Written 2026-10-07. Goal: use DevTinder (Namaste Node.js, Akshay Saini) as an en
 learning project that is strong on a resume and prepares for interviews with real examples and
 real edge cases.
 
-Related: `notes/security-audit-2026-10-07.md` (Phase 0 details).
+Related: `notes/security-audit-2026-10-07.md` (Phase 0 details),
+`docs/infrastructure-plan.md` (Docker, Redis, Grafana, Elasticsearch, Kafka, Kubernetes —
+what each does in DevTinder and the order to learn them).
 
 ---
 
