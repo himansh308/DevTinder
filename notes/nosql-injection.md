@@ -3,8 +3,17 @@
 Found 2026-10-07 in the security audit (#2), worked through 2026-10-10. Everything below was
 **tested against the real running app and local database** — not guessed.
 
-Status: fix (Option B) decided, **not applied yet** — goes in `/login`, `/forgotPassword`,
-`/resetPassword` in `src/routes/authRouter.js`.
+Status: **FIXED 2026-10-10** with Option B in `src/routes/authRouter.js` — `/login` (checks
+`email` and `password`), `/forgotPassword`, `/resetPassword`. Re-tested against the running app:
+
+| Request | Before | After |
+|---|---|---|
+| `/login` with `email: {"$regex":"^you"}` | 200, logged in | 404 "Invalid Credentials" |
+| `/login` with `email: [...]` (array) | — | 404 "Invalid Credentials" |
+| `/login` with `password: {"$ne":null}` | bcrypt crash | 404 "Invalid Credentials" |
+| `/login` normal | 200 | 200 |
+| `/forgotPassword` with `email: {"$ne":null}` | OTP made for first user in DB | 404 "Invalid email" |
+| `/resetPassword` with `email: {"$regex":"^you"}` | — | 404 "Invalid User" |
 
 ---
 

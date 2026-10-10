@@ -8,6 +8,9 @@ Status:
 - **2026-10-10 — #1 (`GET /user` takeover) and #11 (unauthenticated `GET /feed`) FIXED.** Both old
   routes deleted from `src/index.js` along with their now-unused imports. Re-tested: `GET /user`
   returns `404 Cannot GET /user`; real `/feed` still 401 logged out / 200 logged in.
+- **2026-10-10 — #2 (NoSQL injection) FIXED** with `typeof` checks in `/login` (email + password),
+  `/forgotPassword`, `/resetPassword`. Re-tested: `{"$regex":"^you"}` login → 404 "Invalid
+  Credentials"; `{"$ne":null}` on /forgotPassword → 404; normal login still 200.
 - Everything else still OPEN.
 
 ---
