@@ -66,8 +66,9 @@ Each row is a ready-made "what breaks at scale and how would you fix it" intervi
 
 ### Phase 0 — Fix security (1–2 days, do first)
 Follow the fix order in `notes/security-audit-2026-10-07.md`. Critical: delete the old
-`GET /user` and `GET /feed` in `src/index.js`; block non-string `email` (or
-`mongoose.set('sanitizeFilter', true)`). Then cookie flags, rate limiting, OTP hardening.
+`GET /user` and `GET /feed` in `src/index.js` (✅ done 2026-10-10); block non-string `email`
+with a `typeof` check (not global `sanitizeFilter` — tested, it breaks the app's own `$in`/`$nin`/
+`$near` queries). Then cookie flags, rate limiting, OTP hardening.
 Interview story: "I found an account-takeover chain in my own app — here's how, here's the fix."
 
 ### Phase 1 — Clean up the engineering (~1 week)

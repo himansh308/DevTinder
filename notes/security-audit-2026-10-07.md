@@ -4,7 +4,11 @@ Question asked: "Is the project hacker proof?" Short answer: no project is. This
 an attacker could actually do, ranked by damage. The two critical issues were **proven** by
 sending real requests to the running local server — not guessed from reading code.
 
-Status: **all findings OPEN** as of this note (nothing fixed yet).
+Status:
+- **2026-10-10 — #1 (`GET /user` takeover) and #11 (unauthenticated `GET /feed`) FIXED.** Both old
+  routes deleted from `src/index.js` along with their now-unused imports. Re-tested: `GET /user`
+  returns `404 Cannot GET /user`; real `/feed` still 401 logged out / 200 logged in.
+- Everything else still OPEN.
 
 ---
 
@@ -55,10 +59,27 @@ MongoDB treats `$regex` as an operator → "first user whose email starts with `
 Result when tested: **200, logged in, without knowing the exact email.** With `{"$regex":"^a"}`
 etc. an attacker can enumerate accounts and run password guessing against them.
 
-**Fix (pick one, or both):**
-- Reject non-strings: `if (typeof email !== "string") throw new Error("Invalid Credentials")`
-- Mongoose global: `mongoose.set('sanitizeFilter', true)` — strips `$`-operators from query filters
-  built from user input.
+**Fix: reject non-strings at the start of each route** (`/login`, `/forgotPassword`, `/resetPassword`):
+```js
+if (typeof email !== "string") throw new Error("Invalid Credentials");
+```
+`typeof { $regex: "^you" }` is `"object"`, so the attack is rejected before any query runs.
+Long-term: `zod` validation at every route entry (roadmap Phase 1).
+
+**⚠️ Correction (tested 2026-10-10): do NOT just enable `mongoose.set('sanitizeFilter', true)`.**
+It blocks the attack (wraps `{$regex}` in `$eq` → `CastError`), but Mongoose can't tell the
+attacker's `$in` from *your own* `$in`, so it blocks those too. Real results with it ON:
+
+| App query | OFF | ON |
+|---|---|---|
+| Feed `_id` `$nin`/`$ne` | 11 | CastError |
+| Feed gender `$in` + age `$gte`/`$lte` | 6 | CastError |
+| Feed location `$near` | 1 | **0 — silently wrong** |
+| Mutual connections `_id` `$in` | 1 | CastError |
+| Connections `$or` + `$in` | 2 | CastError |
+
+Usable only if every operator you write is wrapped: `{ _id: mongoose.trusted({ $nin: ids }) }`
+(tested: works). Every one you miss = a broken feature, so it's skipped for now.
 
 Lesson: anything from `req.body` / `req.query` is attacker-controlled *including its type*.
 Same family as SQL injection — data being interpreted as query syntax.
@@ -127,7 +148,7 @@ stolen sessions. **Fix:** `res.cookie("token", token, { httpOnly: true, sameSite
 
 ## Fix order
 1. Delete old `GET /user` and `GET /feed` from `index.js` (closes the takeover).
-2. Block non-string `email` / enable `sanitizeFilter`.
+2. Block non-string `email` with a `typeof` check (not `sanitizeFilter` — see #2's correction).
 3. `httpOnly` + `sameSite` on the cookie.
 4. Rate limiting + OTP attempt cap + `crypto.randomInt` (+ hash the OTP).
 5. The medium items.
