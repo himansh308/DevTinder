@@ -40,6 +40,12 @@ authRouter.post('/signup', async(req,res)=>{
 authRouter.post('/login', async(req,res)=>{
 
     try{const {email, password} = req.body;
+
+        // req.body can hold objects like {"$regex": "..."} — only plain strings may reach the query
+        if(typeof email !== "string" || typeof password !== "string"){
+            throw new Error("Invalid Credentials");
+        }
+
         const isUserExist = await User.findOne({email});
 
         if(!isUserExist){
@@ -78,6 +84,10 @@ authRouter.post('/forgotPassword' , async(req,res)=>{
     const {email} = req.body;
     
     try{
+        if(typeof email !== "string"){
+            throw new Error("Invalid email");
+        }
+
         const isUserValid = await User.findOne({email});
         if(!isUserValid){
             throw new Error("Invalid email");
@@ -99,6 +109,10 @@ authRouter.post('/forgotPassword' , async(req,res)=>{
 authRouter.post('/resetPassword' , async(req,res)=>{
     try{
         const {email , OTP , newPassword , confirmPassword } = req.body;
+
+        if(typeof email !== "string"){
+            throw new Error("Invalid User");
+        }
 
         const isUserValid = await User.findOne({email});
         if(!isUserValid){
