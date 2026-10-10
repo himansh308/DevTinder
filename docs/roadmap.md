@@ -108,6 +108,44 @@ Interview: "How do you test?" — most freshers can't answer this well.
 | **Premium** (Razorpay/Stripe test mode): "see who liked you", unlimited swipes | Webhooks, verifying the payment signature, idempotency so one payment never grants premium twice |
 | **Drift detection** (parked) | Distance threshold, GPS jitter, not nagging repeatedly |
 
+#### Email: real sending + verification at signup (decided 2026-10-10)
+
+Order — both on the personal laptop, after the move:
+1. **Nodemailer** replaces the `console.log` OTP in `/forgotPassword` (Ethereal test inbox first,
+   then personal Gmail with an App Password). Frontend form doesn't change.
+2. **Email verification at signup**, on the same Nodemailer setup.
+
+Which checks to use (only #5 proves the address exists **and** belongs to the user — Tinder,
+Bumble, Instagram all rely on it):
+
+| Check | Use? | Why |
+|---|---|---|
+| 1. Format (`validator.isEmail`) | ✅ already in signup | Catches `abc`, `abc@` |
+| 2. Domain MX lookup (`dns.resolveMx`, built into Node) | ✅ add | Free; catches `gmial.con` before sending anything |
+| 3. Disposable-email blocklist | ✅ add | Stops 10-minute throwaway inboxes |
+| 4. Mailbox probe (ZeroBounce, Kickbox) | ❌ skip | Paid and unreliable — Gmail says "yes" to everything |
+| **5. Verification email** | ✅ **the real check** | Proves ownership — can't click a link sent to someone else's inbox |
+
+Flow:
+```
+Signup → user saved with isEmailVerified: false
+       → random token + expiry (24h) generated, stored HASHED
+       → email: "Verify → https://<site>/verify-email?token=abc123"
+Click  → frontend /verify-email page reads token from URL
+       → GET /verify-email?token=abc123 → backend finds user, checks expiry
+       → isEmailVerified: true, token cleared
+Until verified → can log in, but can't swipe/chat (show a "verify your email" banner)
+```
+
+To build:
+- Schema: `isEmailVerified`, `emailVerifyToken`, `emailVerifyExpiry`.
+- Backend: token at signup, `/verify-email`, `/resend-verification`.
+- Frontend: `/verify-email` page (add to `PUBLIC_ROUTES`), unverified banner, "Resend email" button.
+
+Edge cases: expired link → "resend"; clicked twice → "already verified", not an error; resend
+cooldown (~1/min); token stored hashed (same lesson as the OTP in the security audit); never
+reveal whether an email is registered.
+
 Do **two or three properly** (with tests and edge cases) rather than all of them half-done.
 Suggested order: **instant match → chat → photo upload** — they build on each other and cover
 race conditions, real-time, and file handling.
