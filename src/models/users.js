@@ -77,6 +77,9 @@ const userSchema = new mongoose.Schema({
     resetOtpExpiry: {
         type: Date,
     },
+    resetOtpAttempts: {
+        type: Number,
+    },
     genderPreference:{
         type:[String],
         enum:{
@@ -143,6 +146,9 @@ userSchema.methods.validatePassword = async function(passwordInputByUser){
 userSchema.methods.toJSON = function(){
     const user = this.toObject();
     delete user.password;
+    delete user.resetOtp;
+    delete user.resetOtpExpiry;
+    delete user.resetOtpAttempts;
     return user;
 }
 

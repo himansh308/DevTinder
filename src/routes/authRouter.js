@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const User = require('../models/users.js');
 const { validate } = require('../middlewares/validate');
 const { signupBody, loginBody, forgotPasswordBody, resetPasswordBody } = require('../validation/schemas');
+const { OTP_EXPIRES_IN_MS, OTP_MAX_ATTEMPTS, generateOtp, hashOtp, otpMatches } = require('../utils/otp');
 
 
 
@@ -83,11 +84,13 @@ authRouter.post('/forgotPassword' , validate({ body: forgotPasswordBody }), asyn
             throw new Error("Invalid email");
         }
         else{
-            isUserValid.resetOtp = String(Math.floor(Math.random() * 900000)+100000);
-            isUserValid.resetOtpExpiry = new Date(Date.now() + 5 * 60 * 1000);
-    
+            const otp = generateOtp();
+            isUserValid.resetOtp = hashOtp(otp);          // only the HMAC is stored
+            isUserValid.resetOtpExpiry = new Date(Date.now() + OTP_EXPIRES_IN_MS);
+            isUserValid.resetOtpAttempts = 0;
+
             await isUserValid.save();
-            console.log(`OTP for ${email}: ${isUserValid.resetOtp}`);
+            console.log(`OTP for ${email}: ${otp}`);      // stand-in for email delivery
             res.send("OTP generated successfully");
         }
     }
@@ -100,38 +103,52 @@ authRouter.post('/resetPassword' , validate({ body: resetPasswordBody }), async(
     try{
         const {email , OTP , newPassword , confirmPassword } = req.body;
 
-        const isUserValid = await User.findOne({email});
-        if(!isUserValid){
-            throw new Error("Invalid User");
+        // Count the attempt in the same database operation that reads the user, so parallel
+        // guesses each get their own number and can't all sneak under the limit.
+        const user = await User.findOneAndUpdate(
+            { email, resetOtp: { $ne: null } },
+            { $inc: { resetOtpAttempts: 1 } },
+            { returnDocument: 'after' }
+        );
 
+        // Unknown email and "no OTP requested" get the same answer, so this can't be used to find accounts.
+        if(!user){
+            throw new Error("OTP is Incorrect");
         }
-        else{
-            if(isUserValid.resetOtp === OTP){
 
-                if(isUserValid.resetOtpExpiry > Date.now()){
-                    
-                    if(newPassword === confirmPassword){
-                        const passwordHash  = await bcrypt.hash(confirmPassword,10);
-                        isUserValid.password=passwordHash;
+        const clearOtp = async () => {
+            user.resetOtp = null;
+            user.resetOtpExpiry = null;
+            user.resetOtpAttempts = 0;
+            await user.save();
+        };
 
-                        isUserValid.resetOtp = null;
-                        isUserValid.resetOtpExpiry = null;
-                        await isUserValid.save();
-
-                        res.send("Password Updated successfully");
-                    }
-                    else{
-                        throw new Error("Password doesn't match");
-                    }
-                }
-                else{
-                    throw new Error("Time Limit exceeded");
-                }
-            }
-            else{
-                throw new Error("OTP is Incorrect");
-            }
+        if(user.resetOtpAttempts > OTP_MAX_ATTEMPTS){
+            await clearOtp();
+            throw new Error("Too many wrong attempts. Please request a new OTP");
         }
+
+        if(user.resetOtpExpiry <= Date.now()){
+            await clearOtp();
+            throw new Error("Time Limit exceeded");
+        }
+
+        if(!otpMatches(OTP, user.resetOtp)){
+            if(user.resetOtpAttempts >= OTP_MAX_ATTEMPTS){
+                await clearOtp();
+                throw new Error("Too many wrong attempts. Please request a new OTP");
+            }
+            throw new Error("OTP is Incorrect");
+        }
+
+        if(newPassword !== confirmPassword){
+            throw new Error("Password doesn't match");
+        }
+
+        user.password = await bcrypt.hash(newPassword,10);
+        await clearOtp();
+
+        res.send("Password Updated successfully");
     }
     catch(err){
         res.status(404).send(err.message);
