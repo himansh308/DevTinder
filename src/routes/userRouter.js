@@ -4,7 +4,9 @@ const userRouter = express.Router();
 const {userAuth} = require('../middlewares/auth');
 const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
-const { validateLocation, validateMutualConnectionCandidateId } = require('../utils/validation');
+const { validateMutualConnectionCandidateId } = require('../utils/validation');
+const { validate } = require('../middlewares/validate');
+const { locationBody, locationSearchQuery, locationReverseQuery, mutualConnectionsParams, feedQuery } = require('../validation/schemas');
 const { getConnectionIds } = require('../utils/connections');
 const USER_SAFE_DATE =["firstName" ,"lastName" ,"skills" ,"photoUrl","age" , "gender", "about"]
 
@@ -67,12 +69,10 @@ userRouter.get('/user/connections' , userAuth, async(req,res)=>{
     }
 })
 
-userRouter.patch('/user/location' , userAuth , async(req,res)=>{
+userRouter.patch('/user/location' , userAuth , validate({ body: locationBody }), async(req,res)=>{
     try{
         const loggedInUser = req.user;
 
-        validateLocation(req);
-        
         Object.keys(req.body).forEach((key)=>{
             loggedInUser[key] = req.body[key];
         })
@@ -91,13 +91,9 @@ userRouter.patch('/user/location' , userAuth , async(req,res)=>{
     }
 })
 
-userRouter.get('/location/search' , userAuth , async(req,res)=>{
+userRouter.get('/location/search' , userAuth , validate({ query: locationSearchQuery }), async(req,res)=>{
     try{
-        const query = req.query.q;
-
-        if(!query || query.trim().length === 0){
-            throw new Error("Search query is required");
-        }
+        const query = req.query.q.trim();
 
         const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`;
 
@@ -125,14 +121,10 @@ userRouter.get('/location/search' , userAuth , async(req,res)=>{
     }
 })
 
-userRouter.get('/location/reverse' , userAuth , async(req,res)=>{
+userRouter.get('/location/reverse' , userAuth , validate({ query: locationReverseQuery }), async(req,res)=>{
     try{
-        const lat = req.query.lat;
-        const lon = req.query.lon;
-
-        if(!lat || !lon){
-            throw new Error("lat and lon are required");
-        }
+        const lat = req.query.lat.trim();
+        const lon = req.query.lon.trim();
 
         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=jsonv2`;
 
@@ -154,7 +146,7 @@ userRouter.get('/location/reverse' , userAuth , async(req,res)=>{
     }
 })
 
-userRouter.get('/user/mutual-connections/:candidateId' , userAuth , async(req,res)=>{
+userRouter.get('/user/mutual-connections/:candidateId' , userAuth , validate({ params: mutualConnectionsParams }), async(req,res)=>{
     try{
         const loggedInUser = req.user;
         const candidateId = req.params.candidateId;
@@ -181,7 +173,7 @@ userRouter.get('/user/mutual-connections/:candidateId' , userAuth , async(req,re
     }
 })
 
-userRouter.get('/feed' , userAuth, async(req,res)=>{
+userRouter.get('/feed' , userAuth, validate({ query: feedQuery }), async(req,res)=>{
 
     try{
         

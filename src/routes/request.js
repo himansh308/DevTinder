@@ -3,20 +3,17 @@ const { userAuth } = require('../middlewares/auth');
 const requestRouter = express.Router();
 const {connectionRequestModel} = require('../models/connectionRequest');
 const User = require('../models/users');
+const { validate } = require('../middlewares/validate');
+const { sendRequestParams, reviewRequestParams } = require('../validation/schemas');
 
 
 
-requestRouter.post('/request/send/:status/:toUserId',userAuth , async(req,res)=>{
+requestRouter.post('/request/send/:status/:toUserId',userAuth , validate({ params: sendRequestParams }), async(req,res)=>{
 
-    try{   
+    try{
         const fromUserId = req.user._id;
         const status = req.params.status;
         const toUserId = req.params.toUserId;
-
-        const allowedStatus = ["interested" , "ignored"];
-        if(!allowedStatus.includes(status)){
-            throw new Error ("Invalid request");
-        }
 
         const isToUserExists = await User.findById(toUserId);
 
@@ -60,17 +57,11 @@ requestRouter.post('/request/send/:status/:toUserId',userAuth , async(req,res)=>
     }
 })
 
-requestRouter.post('/request/review/:status/:requestId' , userAuth , async(req, res)=>{
+requestRouter.post('/request/review/:status/:requestId' , userAuth , validate({ params: reviewRequestParams }), async(req, res)=>{
 
     try{
         const loggedInUser = req.user;
         const{status , requestId } = req.params;
-
-        const allowedStatus = ["accepted" ,"rejected"];
-
-        if(!allowedStatus.includes(status)){
-            throw new Error("Invalid request");
-        }
 
         const connectionRequest = await connectionRequestModel.findOne({
             _id:requestId,

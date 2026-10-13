@@ -2,7 +2,8 @@ const express = require('express');
 const profileRouter = express.Router();
 const {userAuth} = require('../middlewares/auth');
 const User = require('../models/users');
-const{validateEditProfileDate, validateProfilePreference} = require('../utils/validation');
+const { validate } = require('../middlewares/validate');
+const { editProfileBody, preferencesBody } = require('../validation/schemas');
 
 
 profileRouter.post('/profile/view' ,userAuth, async(req,res)=>{
@@ -23,16 +24,13 @@ profileRouter.post('/profile/view' ,userAuth, async(req,res)=>{
 
 })
 
-profileRouter.patch('/profile/edit', userAuth , async(req,res)=>{
-    
+profileRouter.patch('/profile/edit', userAuth , validate({ body: editProfileBody }), async(req,res)=>{
+
     try{
-       
-        validateEditProfileDate(req);
         const loggedInUser = req.user;
         Object.keys(req.body).forEach((key)=>{
             loggedInUser[key] = req.body[key];
         })
-        // console.log(user);
         await loggedInUser.save();
         res.status(200).json({
             data:loggedInUser,
@@ -71,10 +69,8 @@ profileRouter.patch('/profile/edit', userAuth , async(req,res)=>{
 //         res.status(404).send(err.message);
 //     }
 // })
-profileRouter.patch('/profile/preferences' , userAuth , async(req , res) =>{
+profileRouter.patch('/profile/preferences' , userAuth , validate({ body: preferencesBody }), async(req , res) =>{
     try{
-        validateProfilePreference(req);
-
         const loggedInUser = req.user;
         Object.keys(req.body).forEach((key)=>{
             loggedInUser[key] = req.body[key];

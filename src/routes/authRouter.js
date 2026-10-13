@@ -3,15 +3,14 @@ const authRouter = express.Router();
 const bcrypt = require("bcrypt");
 const JWT = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const {isSignupValidated} = require('../utils/validation.js');
 const User = require('../models/users.js');
+const { validate } = require('../middlewares/validate');
+const { signupBody, loginBody, forgotPasswordBody, resetPasswordBody } = require('../validation/schemas');
 
 
 
-authRouter.post('/signup', async(req,res)=>{
+authRouter.post('/signup', validate({ body: signupBody }), async(req,res)=>{
     try{
-        isSignupValidated(req);
-
         const {firstName,lastName, email , password, gender} = req.body;
         const hashpassword = await bcrypt.hash(password,10);
         const user = new User({firstName,lastName, email , password:hashpassword ,gender});
@@ -37,14 +36,9 @@ authRouter.post('/signup', async(req,res)=>{
    
 })
 
-authRouter.post('/login', async(req,res)=>{
+authRouter.post('/login', validate({ body: loginBody }), async(req,res)=>{
 
     try{const {email, password} = req.body;
-
-        // req.body can hold objects like {"$regex": "..."} — only plain strings may reach the query
-        if(typeof email !== "string" || typeof password !== "string"){
-            throw new Error("Invalid Credentials");
-        }
 
         const isUserExist = await User.findOne({email});
 
@@ -80,14 +74,10 @@ authRouter.post('/logout' , async(req,res)=>{
 
 })
 
-authRouter.post('/forgotPassword' , async(req,res)=>{
+authRouter.post('/forgotPassword' , validate({ body: forgotPasswordBody }), async(req,res)=>{
     const {email} = req.body;
-    
-    try{
-        if(typeof email !== "string"){
-            throw new Error("Invalid email");
-        }
 
+    try{
         const isUserValid = await User.findOne({email});
         if(!isUserValid){
             throw new Error("Invalid email");
@@ -106,13 +96,9 @@ authRouter.post('/forgotPassword' , async(req,res)=>{
     }
 })
 
-authRouter.post('/resetPassword' , async(req,res)=>{
+authRouter.post('/resetPassword' , validate({ body: resetPasswordBody }), async(req,res)=>{
     try{
         const {email , OTP , newPassword , confirmPassword } = req.body;
-
-        if(typeof email !== "string"){
-            throw new Error("Invalid User");
-        }
 
         const isUserValid = await User.findOne({email});
         if(!isUserValid){
