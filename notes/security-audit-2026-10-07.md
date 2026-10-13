@@ -11,6 +11,18 @@ Status:
 - **2026-10-10 — #2 (NoSQL injection) FIXED** with `typeof` checks in `/login` (email + password),
   `/forgotPassword`, `/resetPassword`. Re-tested: `{"$regex":"^you"}` login → 404 "Invalid
   Credentials"; `{"$ne":null}` on /forgotPassword → 404; normal login still 200.
+- **2026-10-12 — #7 (weak password on reset) FIXED** by the zod `resetPasswordBody` schema
+  (strength checked on the plain password, before hashing).
+- **2026-10-13 — #4 (OTP predictable + plaintext) FIXED; #3 PARTLY fixed.** `src/utils/otp.js`:
+  `crypto.randomInt` generation, stored as **HMAC-SHA256 with `OTP_SECRET`** (a plain SHA-256 of a
+  6-digit code is reversible by hashing all 900,000 codes), `crypto.timingSafeEqual` comparison.
+  `/resetPassword` caps wrong guesses at 5 — the attempt is counted with an atomic `$inc` in the
+  same `findOneAndUpdate` that reads the user, so parallel guesses can't all slip under the cap
+  (tested: 50 simultaneous wrong guesses → OTP wiped, correct code then refused). OTP fields are
+  also stripped in `toJSON`. Unknown email on reset now gets the same "OTP is Incorrect" as a
+  wrong code (part of #6).
+  **Still open in #3:** no rate limit on `/forgotPassword` or `/login`. An attacker can request a
+  fresh OTP after each lockout and get another 5 guesses — rate limiting closes that.
 - Everything else still OPEN.
 
 ---
