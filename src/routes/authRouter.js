@@ -83,12 +83,12 @@ authRouter.post('/forgotPassword' , validate({ body: forgotPasswordBody }), asyn
         }
         else{
             const otp = generateOtp();
-            isUserValid.resetOtp = hashOtp(otp);          // only the HMAC is stored
+            isUserValid.resetOtp = hashOtp(otp);         
             isUserValid.resetOtpExpiry = new Date(Date.now() + OTP_EXPIRES_IN_MS);
             isUserValid.resetOtpAttempts = 0;
 
             await isUserValid.save();
-            console.log(`OTP for ${email}: ${otp}`);      // stand-in for email delivery
+            console.log(`OTP for ${email}: ${otp}`);      
             res.send("OTP generated successfully");
         }
     }
@@ -101,15 +101,12 @@ authRouter.post('/resetPassword' , validate({ body: resetPasswordBody }), async(
     try{
         const {email , OTP , newPassword , confirmPassword } = req.body;
 
-        // Count the attempt in the same database operation that reads the user, so parallel
-        // guesses each get their own number and can't all sneak under the limit.
         const user = await User.findOneAndUpdate(
             { email, resetOtp: { $ne: null } },
             { $inc: { resetOtpAttempts: 1 } },
             { returnDocument: 'after' }
         );
 
-        // Unknown email and "no OTP requested" get the same answer, so this can't be used to find accounts.
         if(!user){
             throw new Error("OTP is Incorrect");
         }
