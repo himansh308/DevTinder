@@ -1,8 +1,6 @@
 const express = require('express');
 const authRouter = express.Router();
 const bcrypt = require("bcrypt");
-const JWT = require('jsonwebtoken');
-const cookieParser = require('cookie-parser');
 const User = require('../models/users.js');
 const { validate } = require('../middlewares/validate');
 const { signupBody, loginBody, forgotPasswordBody, resetPasswordBody } = require('../validation/schemas');
