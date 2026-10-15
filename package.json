@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "seed": "node scripts/seed.js",
+    "test:routes": "bash scripts/tests/route-tests.sh",
+    "test:otp": "bash scripts/tests/otp-tests.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
