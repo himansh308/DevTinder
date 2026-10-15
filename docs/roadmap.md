@@ -1,5 +1,7 @@
 # DevTinder Roadmap — From Course Project to Portfolio-Grade Full-Stack App
 
+> New machine or new session? Start with `docs/handoff.md` (setup, current state, what's next).
+
 Written 2026-10-07. Goal: use DevTinder (Namaste Node.js, Akshay Saini) as an end-to-end MERN
 learning project that is strong on a resume and prepares for interviews with real examples and
 real edge cases.
