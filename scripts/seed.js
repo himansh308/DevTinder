@@ -141,14 +141,80 @@ function assertLocalDatabase(uri) {
     }
 }
 
+function assertAtlasDatabase(uri) {
+    if (!uri) throw new Error("MONGO_URI is not set in .env");
+    const parsed = new URL(uri);
+    if (parsed.protocol !== "mongodb+srv:" || ["127.0.0.1", "localhost", "::1"].includes(parsed.hostname)) {
+        throw new Error("--atlas requires a remote MongoDB Atlas URI using mongodb+srv");
+    }
+}
+
+async function seedAtlasPreserving(fakeCount) {
+    await Promise.all([User.init(), connectionRequestModel.init()]);
+
+    const password = await bcrypt.hash(TEST_PASSWORD, 10);
+    const youLocation = FIXED_USERS[0].location.coordinates;
+    const fixed = FIXED_USERS.map((u) => ({
+        skills: DEFAULT_SKILLS, photoUrl: DEFAULT_PHOTO, ...u, password,
+    }));
+    const fake = generateUsers(fakeCount, youLocation).map((u) => ({ ...u, password }));
+    const seedUsers = [...fixed, ...fake];
+    const emails = seedUsers.map((user) => user.email);
+
+    const existingUsers = await User.find({ email: { $in: emails } }).select("email").lean();
+    const existingEmails = new Set(existingUsers.map((user) => user.email));
+    const missingUsers = seedUsers.filter((user) => !existingEmails.has(user.email));
+    if (missingUsers.length) await User.insertMany(missingUsers);
+
+    const users = await User.find({ email: { $in: emails } }).select("_id email").lean();
+    const idByEmail = Object.fromEntries(users.map((user) => [user.email, user._id]));
+    const connections = [...FIXED_CONNECTIONS, ...generateConnections(fake.map((user) => user.email))];
+    const userIds = users.map((user) => user._id);
+    const existingConnections = await connectionRequestModel.find({
+        fromUserId: { $in: userIds },
+        toUserId: { $in: userIds },
+    }).select("fromUserId toUserId").lean();
+    const pairKey = (from, to) => [String(from), String(to)].sort().join("|");
+    const existingPairs = new Set(existingConnections.map((connection) =>
+        pairKey(connection.fromUserId, connection.toUserId)));
+    const missingConnections = connections
+        .map((connection) => ({
+            fromUserId: idByEmail[connection.from],
+            toUserId: idByEmail[connection.to],
+            status: connection.status,
+        }))
+        .filter((connection) => {
+            const key = pairKey(connection.fromUserId, connection.toUserId);
+            if (existingPairs.has(key)) return false;
+            existingPairs.add(key);
+            return true;
+        });
+
+    if (missingConnections.length) await connectionRequestModel.insertMany(missingConnections);
+    console.log(
+        `Seeded "${mongoose.connection.name}" without deleting data: ` +
+        `${missingUsers.length} users added, ${existingUsers.length} existing users preserved; ` +
+        `${missingConnections.length} connection requests added, ` +
+        `${existingConnections.length} existing requests preserved.`,
+    );
+    console.log(`New accounts' password: ${TEST_PASSWORD}`);
+}
+
 async function seed() {
     const fakeCount = parseFakeCount(process.argv);
-    assertLocalDatabase(process.env.MONGO_URI);
+    const atlasMode = process.argv.includes("--atlas");
+    if (atlasMode) assertAtlasDatabase(process.env.MONGO_URI);
+    else assertLocalDatabase(process.env.MONGO_URI);
     faker.seed(42);                                     // same "random" developers on every run
 
     await mongoose.connect(process.env.MONGO_URI);
-    await Promise.all([User.init(), connectionRequestModel.init()]);   // build indexes on a fresh DB
+    if (atlasMode) {
+        await seedAtlasPreserving(fakeCount);
+        await mongoose.disconnect();
+        return;
+    }
 
+    await Promise.all([User.init(), connectionRequestModel.init()]);   // build indexes on a fresh DB
     await connectionRequestModel.deleteMany({});
     await User.deleteMany({});
 
