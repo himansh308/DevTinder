@@ -179,6 +179,7 @@ userRouter.get('/feed' , userAuth, validate({ query: feedQuery }), async(req,res
         
         const loggedInUser = req.user;
         const page = parseInt(req.query.page) || 1;
+
         let PageLimit = parseInt(req.query.limit) || 10;
         
 
@@ -186,7 +187,9 @@ userRouter.get('/feed' , userAuth, validate({ query: feedQuery }), async(req,res
             PageLimit=50;
         }
 
-        const noOfPageToBeSkiped = (page-1)*PageLimit;
+        const noOfPageToBeSkiped = req.query.excludeIds
+            ? 0
+            : (page-1)*PageLimit;
 
         const existingConnectionRequests = await connectionRequestModel.find({
             $or:[
@@ -195,7 +198,9 @@ userRouter.get('/feed' , userAuth, validate({ query: feedQuery }), async(req,res
             ]
         }).select("fromUserId toUserId")
 
-        const hideExistingData = new Set();
+        const hideExistingData = new Set(
+            req.query.excludeIds ? req.query.excludeIds.split(",") : []
+        );
 
         existingConnectionRequests.forEach((reqt)=>{
             hideExistingData.add(reqt.fromUserId.toString());

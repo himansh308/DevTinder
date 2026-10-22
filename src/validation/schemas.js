@@ -126,6 +126,13 @@ const mutualConnectionsParams = z.object({
 const feedQuery = z.object({
     page: numericString(1, 100000, "page must be a number of at least 1").optional(),
     limit: numericString(1, 50, "limit must be a number between 1 and 50").optional(),
+     excludeIds: z.string().max(24000).optional().refine(
+        (value) => value === undefined || (
+            value.split(",").length <= 1000 &&
+            value.split(",").every((id) => /^[0-9a-fA-F]{24}$/.test(id))
+        ),
+        { error: "excludeIds must be a comma-separated list of valid user IDs" }
+    ),
 });
 
 module.exports = {
